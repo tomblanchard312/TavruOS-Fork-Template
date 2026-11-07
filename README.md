@@ -45,3 +45,7 @@ An incoming `.github` change stops the update for manual review. Scripts never r
 The scan is a supplemental publication gate, not proof that content is safe. It does not discover every secret, identify ownership of arbitrary source, or establish license compatibility. Audit content, history, dependencies, LFS objects, submodules, releases and attachments separately. A failed public CI scan happens **after upload**: scan locally before any public push. See [security](docs/security.md).
 
 Template code uses [MIT](LICENSE). Upstream code and assets retain their own terms. Private hosting does not remove obligations attached to distributing open-source derivatives.
+
+## Shared Tavru chat rules
+
+All Tavru chat interfaces, including Oqelith, must follow [the chat interface standard](docs/chat-interface-standard.md). When adopting the template, copy this policy into the private product and link it from its root `AGENTS.md`. Existing products must explicitly adopt and review it; template updates alone do not change their interfaces.
