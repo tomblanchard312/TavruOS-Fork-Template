@@ -1,0 +1,38 @@
+{
+  "blocked_components": [
+    "private",
+    "proprietary",
+    "branding-private",
+    "secrets",
+    ".ssh"
+  ],
+  "asset_extensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".svg",
+    ".ico",
+    ".icns",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".zip",
+    ".pdf"
+  ],
+  "approved_asset_sha256": [],
+  "approved_license_sha256": [
+    "0a00a5cd7f338c1f51342a31ff28865dec6bf62dcfad23d7b9949cd0ef68a1f8"
+  ],
+  "allowed_spdx_expressions": [
+    "MIT"
+  ],
+  "notice_exceptions": [
+    "README.md",
+    "docs/security.md",
+    "scripts/scan.py",
+    "publication-policy.json",
+    "tests/test_template.py",
+    "docs/setup.md",
+    "docs/migration.md"
+  ]
+}

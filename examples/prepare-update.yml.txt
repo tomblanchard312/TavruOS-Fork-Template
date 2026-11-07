@@ -1,0 +1,28 @@
+# Install only after auditing in the DESTINATION repo. Never run source code.
+# Set public vars SOURCE_REPOSITORY (owner/repo), SOURCE_BRANCH, REPOSITORY_ROLE.
+# role public fetches upstream; role private fetches the public clean fork.
+name: Prepare public source update
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare local review branch
+        env:
+          SOURCE: ${{ vars.SOURCE_REPOSITORY }}
+          REF: ${{ vars.SOURCE_BRANCH }}
+          ROLE: ${{ vars.REPOSITORY_ROLE }}
+        run: |
+          git config user.name 'TavruOS update review'
+          git config user.email 'updates@users.noreply.github.com'
+          python3 scripts/update.py "$ROLE" "$SOURCE" "$REF" review/source-update
+      # Intentionally no push or artifacts. Repeat locally after inspecting the log.
+      # A write-enabled job must never execute code or workflows imported from source.
