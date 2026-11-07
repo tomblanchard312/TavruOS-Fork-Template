@@ -1,5 +1,9 @@
 # Security model and protection checklist
 
+## No upstream history in private products
+
+Use `init_product.py` and private `update.py`: source trees only, with no upstream commit parents. Never push FETCH_HEAD, mirrors or all refs. Tests assert a one-root initial import with an identical source tree and no source commit ancestry in subsequent product branches. Public GitHub-native tracking forks necessarily retain upstream history.
+
 ## Credentials and automation
 
 Public CI uses only its repository-scoped `GITHUB_TOKEN` with `contents: read`. Checkout does not persist credentials. No PAT, deployment key, private remote, `pull_request_target`, reusable private workflow, source execution in a write-enabled job, self-hosted runner or private artifact is needed. The update example is inert until deliberately installed; its public source is fetched without credentials and it has no push step.

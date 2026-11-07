@@ -22,6 +22,9 @@ def public_source(repo):
 
 
 def prepare(url, ref, role, branch):
+    if role == 'private':
+        from snapshot_update import prepare as snapshot_prepare
+        return snapshot_prepare(url, ref, branch)
     if git('status', '--porcelain'):
         raise ValueError('Working tree must be clean')
     if not re.fullmatch(r'review/[A-Za-z0-9_-]+', branch):

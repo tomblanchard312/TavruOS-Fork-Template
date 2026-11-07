@@ -40,6 +40,7 @@ class TemplateTests(unittest.TestCase):
         commit(self.source, 'base.txt', 'base\n')
         self.dest = self.root / 'dest'
         subprocess.run(['git', 'clone', '-q', str(self.source), str(self.dest)], check=True)
+        git(self.dest, 'branch', 'vendor/public-snapshot')
         git(self.dest, 'config', 'user.name', 'Fixture')
         git(self.dest, 'config', 'user.email', 'fixture@example.invalid')
         self.previous = Path.cwd()
@@ -62,7 +63,7 @@ class TemplateTests(unittest.TestCase):
     def test_private_preserves_changes(self):
         commit(self.dest, 'private/product.txt', 'product\n')
         commit(self.source, 'new.txt', 'update\n')
-        update.prepare(str(self.source), 'main', 'private', 'review/update')
+        update.prepare(str(self.source), 'main', 'private', 'review/source-update')
         self.assertTrue((self.dest / 'private/product.txt').exists())
         self.assertTrue((self.dest / 'new.txt').exists())
         self.assertEqual(len(git(self.dest, 'rev-list', '--parents', '-n', '1', 'HEAD').split()), 3)
@@ -70,7 +71,7 @@ class TemplateTests(unittest.TestCase):
     def test_rejects_workflows(self):
         commit(self.source, '.github/workflows/unsafe.yml', 'name: unsafe\n')
         with self.assertRaisesRegex(ValueError, '.github'):
-            update.prepare(str(self.source), 'main', 'private', 'review/update')
+            update.prepare(str(self.source), 'main', 'private', 'review/source-update')
 
     def test_rejects_dirty_tree(self):
         (self.dest / 'dirty').write_text('dirty')
@@ -82,7 +83,7 @@ class TemplateTests(unittest.TestCase):
         git(self.source, 'rm', '-rf', '.')
         commit(self.source, 'other.txt', 'other\n')
         with self.assertRaises(subprocess.CalledProcessError):
-            update.prepare(str(self.source), 'other', 'private', 'review/update')
+            update.prepare(str(self.source), 'other', 'public', 'review/update')
 
     def test_conflict_preserves_main(self):
         base = git(self.dest, 'rev-parse', 'main')
@@ -90,7 +91,7 @@ class TemplateTests(unittest.TestCase):
         private = git(self.dest, 'rev-parse', 'main')
         commit(self.source, 'base.txt', 'upstream edit\n')
         with self.assertRaises(subprocess.CalledProcessError):
-            update.prepare(str(self.source), 'main', 'private', 'review/conflict')
+            update.prepare(str(self.source), 'main', 'private', 'review/conflict-update')
         self.assertEqual(git(self.dest, 'rev-parse', 'main'), private)
         git(self.dest, 'merge', '--abort')
         self.assertNotEqual(base, private)

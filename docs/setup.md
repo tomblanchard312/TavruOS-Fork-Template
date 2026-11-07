@@ -1,51 +1,46 @@
-# Setup
+# Setup: no upstream history in private products
 
-## Two independent repositories, with shared upstream history
+**Rule: import public source snapshots, never upstream commit ancestry, into private product repositories.** Preserve licenses, attribution and notices. GitHub-native public tracking forks necessarily retain upstream history; the rule governs independent private products. Never seed products with a clone-and-push, mirror, bundle or upstream history merge.
 
-Do not generate an empty template repository and merge unrelated upstream history into it. This is a tooling template, not the application's history. GitHub does not let you make a public fork private; create an independent private product repository instead.
+## Public tracking fork
+
+Create or reuse the clean public GitHub fork. Keep private remotes and credentials out. `update.py public` prepares fast-forward-only review branches without pushing. Do not change existing forks unless explicitly authorized.
+
+## Private product initialization
+
+Create the private destination, verify visibility, and disable Actions before importing:
 
 ```sh
-gh repo fork UPSTREAM_OWNER/PROJECT --clone=false
-# Confirm the actual fork name first; it is normally PROJECT.
-gh repo view YOUR_OWNER/PROJECT --json nameWithOwner,visibility,isFork,parent
-# Disable inherited workflows before cloning or importing code.
-gh api --method PUT repos/YOUR_OWNER/PROJECT/actions/permissions -F enabled=false
-git clone https://github.com/YOUR_OWNER/PROJECT.git public-work
-# Never add a private remote to public-work.
 gh repo create YOUR_OWNER/PRODUCT --private --disable-wiki
-# Confirm PRIVATE before the first push:
-gh repo view YOUR_OWNER/PRODUCT --json nameWithOwner,visibility
 gh api --method PUT repos/YOUR_OWNER/PRODUCT/actions/permissions -F enabled=false
-# This starts from PUBLIC history only, not a mirror of a proprietary repository.
-git clone https://github.com/YOUR_OWNER/PROJECT.git product-work
-git -C product-work remote set-url origin https://github.com/YOUR_OWNER/PRODUCT.git
-git -C product-work push -u origin HEAD:main
+gh repo view YOUR_OWNER/PRODUCT --json visibility
+mkdir product-work
+cd product-work
+git init -b main
+python3 /path/to/template/scripts/init_product.py YOUR_OWNER/PUBLIC_FORK main
+git remote add origin https://github.com/YOUR_OWNER/PRODUCT.git
 ```
 
-Replace placeholders explicitly. Do not use `--mirror`, `push --all`, or `push --tags`. Do not initialize the private destination with a README: preserve common ancestry. Disable Actions in each new repository before its first push. Audit workflows already inherited by the public fork; a fork can include upstream automation unrelated to this pattern.
+The initializer requires an empty checkout, fetches depth one and creates a new root from the exact source tree, with no upstream parents. It also creates `vendor/public-snapshot`. The source commit remains local in FETCH_HEAD; never push FETCH_HEAD, tags, all refs or a mirror. A shallow clone alone is not a safe product import.
 
-Copy `scripts/`, `tests/`, `publication-policy.json`, and the desired workflow from this template into a review branch in each repository, preserving application files and licenses. If any path collides, integrate manually. Keep existing CODEOWNERS entries and add real security reviewers. Adapt tests and policy for the upstream baseline rather than deleting upstream content just to pass a scan.
+With Actions still disabled, quarantine inherited workflow YAML outside `.github/workflows`. Preserve source notices and licensing. Copy this template's scripts, tests, policy, docs and MIT license into an isolated folder such as `.tavru/fork-template`, preserving application scripts/tests/README. Adapt private CODEOWNERS to authorized reviewers. Install only reviewed workflows with read-only permissions, pinned checkout and no persisted credentials. Run imported application code without publication credentials.
 
-The strict default policy needs explicit asset and license approvals. Review the source and terms, record why a hash was approved in the PR, then add its `sha256sum` to the appropriate policy list. SPDX expressions are exact reviewed values. Review upstream license/dependency compatibility at setup and every license change. Notice exceptions apply only to the restricted-notice heuristic, never to secret checks. Do not approve a restricted license merely to make CI green.
+Before product setup commits, verify `git rev-list --count main` equals 1 and `git rev-list --parents -n 1 vendor/public-snapshot` has no parent. Compare the root tree against the source. Add setup changes in a separate product commit; verify the private remote and push only `main` and `vendor/public-snapshot` explicitly. Re-enable Actions only after auditing every active workflow. Configure protections and verify private-plan support separately.
 
-In private products, retain the public publication policy unchanged; it is intended for public candidates, and correctly rejects private paths. Configure private product CI to run application checks and a dedicated secret scanner without demanding that private assets pass a public publication gate. Keep this template's full validation in the public fork or tooling repository. Never put private hashes, paths or inventory in a public policy.
+## Snapshot updates
 
-## Update process
-
-Start on the current destination default branch with a clean working tree. Run `update.py` with role `public` for upstream → public fork, or `private` for public fork → private product. Only GitHub repositories confirmed public through the unauthenticated metadata API are accepted. No private access token is needed to fetch. Repository names/ref values are passed as arguments, not evaluated as shell code.
-
-The result is a new local `review/...` branch. Public updates must fast-forward; private updates preserve product commits with a merge. Unrelated history or incoming `.github` changes stop before creating the branch. A conflict leaves the review branch available for inspection; run `git merge --abort` to abandon that merge. Existing main stays unchanged.
-
-Inspect the exact changes, licensing, and any build scripts. Resolve conflicts on the review branch and run the application's tests in a credential-free environment. Review incoming CI separately before merging it. For public candidates, also commit the candidate locally and run `python3 scripts/scan.py` with all relevant history fetched. Stage/commit review is essential: the scanner reads committed reachable history, not untracked or uncommitted files.
-
-Only after local review:
+From current private main with a clean checkout and private origin fetched:
 
 ```sh
-git remote -v  # check destination, especially before public publication
-git push origin HEAD:refs/heads/review/source-update
-gh pr create --base main --head review/source-update
+python3 /path/to/template/scripts/update.py private YOUR_OWNER/PUBLIC_FORK main review/public-update
 ```
 
-Keep private PR logs and artifacts private. Never upload private merge reports to the public fork. Recheck branch protection before merging. Do not auto-merge imported code.
+Private mode always uses `snapshot_update.py`. It fetches depth one, rejects incoming `.github` changes for separate security review, and creates a snapshot commit whose only parent is the previous private snapshot. It merges that snapshot onto a new review branch, preserving product changes. It never pushes. Source ancestry never becomes product ancestry.
 
-The example manual update workflow has no write permission and publishes no artifact; it only checks preparation in an ephemeral runner. Repeat preparation locally to create the PR. Automation that later pushes requires a separate audited design; this template intentionally uses no PAT or cross-repository secret.
+A conflict remains on the review branch; resolve or `git merge --abort`. The snapshot baseline is unchanged after failure. After successful preparation, review/test and push only the private review branch for a PR. After accepting it into private main, push the local `vendor/public-snapshot` branch to private origin. Do not begin another import while one is pending. If abandoning successful preparation, reset the local baseline to `origin/vendor/public-snapshot` before retrying. Fresh clones use the remote baseline if there is no local one.
+
+The inert workflow example only prepares an ephemeral candidate. No workflow pushes or uploads private artifacts. Imported workflows require manual review and quarantine.
+
+## Publication gates
+
+Keep the public publication policy strict; it is not a private-product CI gate. Use maintained private secret scanning and application-specific tests separately. Never put private inventories into public policies. For public candidates, commit and scan locally before pushing: CI is too late to prevent initial disclosure. The scanner checks reachable committed history, not untracked/staged-only data. Review asset and license terms before approving exact hashes or SPDX expressions; hashes are not publication permission. See security and promotion docs for limits.
